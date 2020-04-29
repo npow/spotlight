@@ -100,6 +100,7 @@ class ExplicitFactorizationModel(object):
         self._net = None
         self._optimizer = None
         self._loss_func = None
+        self._epochs = 0
 
         set_seed(self._random_state.randint(-10**8, 10**8),
                  cuda=self._use_cuda)
@@ -198,6 +199,7 @@ class ExplicitFactorizationModel(object):
         self._check_input(user_ids, item_ids)
 
         for epoch_num in range(self._n_iter):
+            self._epochs += 1
 
             users, items, ratings = shuffle(user_ids,
                                             item_ids,
@@ -238,7 +240,7 @@ class ExplicitFactorizationModel(object):
             epoch_loss /= minibatch_num + 1
 
             if verbose:
-                print('Epoch {}: loss {}'.format(epoch_num, epoch_loss))
+                print('Epoch {}: loss {}'.format(self._epochs, epoch_loss))
 
             if np.isnan(epoch_loss) or epoch_loss == 0.0:
                 raise ValueError('Degenerate epoch loss: {}'
