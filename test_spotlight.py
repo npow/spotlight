@@ -5,6 +5,7 @@ import pickle
 import os
 import time
 import torch
+import torch.nn as nn
 from tqdm import tqdm
 from spotlight.cross_validation import random_train_test_split
 from spotlight.evaluation import rmse_score
@@ -70,6 +71,8 @@ def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sp
     train, test = random_train_test_split(dataset, random_state=np.random.RandomState(seed))
 
     representation = BilinearNet(dataset.num_users, dataset.num_items, embedding_dim, sparse=sparse)
+    if torch.cuda.device_count() > 1:
+        representation = nn.DataParallel(representation)
 
     model = ExplicitFactorizationModel(n_iter=1, l2=l2, learning_rate=lr, embedding_dim=embedding_dim, use_cuda=True, batch_size=batch_size, representation=representation, sparse=sparse)
     for epoch in range(num_epochs):
