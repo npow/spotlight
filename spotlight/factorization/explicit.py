@@ -16,6 +16,7 @@ from spotlight.losses import (poisson_loss,
                               logistic_loss)
 
 from spotlight.torch_utils import cpu, gpu, minibatch, set_seed, shuffle
+from tqdm import tqdm
 
 
 class ExplicitFactorizationModel(object):
@@ -212,13 +213,14 @@ class ExplicitFactorizationModel(object):
 
             epoch_loss = 0.0
 
+            total = len(user_ids) // self._batch_size
             for (minibatch_num,
                  (batch_user,
                   batch_item,
-                  batch_ratings)) in enumerate(minibatch(user_ids_tensor,
+                  batch_ratings)) in enumerate(tqdm(minibatch(user_ids_tensor,
                                                          item_ids_tensor,
                                                          ratings_tensor,
-                                                         batch_size=self._batch_size)):
+                                                         batch_size=self._batch_size), total=total)):
 
                 predictions = self._net(batch_user, batch_item)
 
