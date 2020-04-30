@@ -17,6 +17,7 @@ from spotlight.losses import (poisson_loss,
 
 from spotlight.torch_utils import cpu, gpu, minibatch, set_seed, shuffle
 from tqdm import tqdm
+from parallel import DataParallelCriterion
 
 
 class ExplicitFactorizationModel(object):
@@ -148,6 +149,8 @@ class ExplicitFactorizationModel(object):
             self._loss_func = logistic_loss
         else:
             raise ValueError('Unknown loss: {}'.format(self._loss))
+#        if torch.cuda.device_count() > 1:
+#            self._loss_func = DataParallelCriterion(self._loss_func)
 
     def _check_input(self, user_ids, item_ids, allow_items_none=False):
 

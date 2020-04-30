@@ -12,6 +12,7 @@ from spotlight.evaluation import rmse_score
 from spotlight.interactions import Interactions
 from spotlight.factorization.explicit import ExplicitFactorizationModel
 from spotlight.factorization.representations import BilinearNet
+from parallel import DataParallelModel
 
 
 class Timer:
@@ -47,8 +48,8 @@ def str2bool(v):
 parser = argparse.ArgumentParser()
 parser.register('type', 'bool', str2bool)
 parser.add_argument('--num_epochs', type=int, default=20)
-parser.add_argument('--embedding_dim', type=int, default=128)
-parser.add_argument('--batch_size', type=int, default=1024)
+parser.add_argument('--embedding_dim', type=int, default=10)
+parser.add_argument('--batch_size', type=int, default=2048)
 parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints')
 parser.add_argument('--l2', type=float, default=0.0001)
 parser.add_argument('--lr', type=float, default=0.001)
@@ -57,10 +58,11 @@ parser.add_argument('--sparse', type=str2bool, default=False)
 
 
 def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sparse):
-    L = get_ratings('ratings_small.csv')
-    user_ids, wine_ids, ratings = zip(*L)
-    #with open('ratings.pkl', 'rb') as f:
-    #    user_ids, wine_ids, ratings = pickle.load(f)
+    #L = get_ratings('ratings_small.csv')
+    #user_ids, wine_ids, ratings = zip(*L)
+    with open('ratings.pkl', 'rb') as f:
+        user_ids, wine_ids, ratings = pickle.load(f)
+
     user_id_mapping = {user_id:i for i, user_id in enumerate(set(user_ids))}
     wine_id_mapping = {wine_id:i for i, wine_id in enumerate(set(wine_ids))}
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
@@ -73,6 +75,7 @@ def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sp
     representation = BilinearNet(dataset.num_users, dataset.num_items, embedding_dim, sparse=sparse)
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)
+        #representation = DataParallelModel(representation)
 
     model = ExplicitFactorizationModel(n_iter=1, l2=l2, learning_rate=lr, embedding_dim=embedding_dim, use_cuda=True, batch_size=batch_size, representation=representation, sparse=sparse)
     for epoch in range(num_epochs):
