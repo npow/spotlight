@@ -51,23 +51,23 @@ parser.add_argument('--num_epochs', type=int, default=20)
 parser.add_argument('--embedding_dim', type=int, default=10)
 parser.add_argument('--batch_size', type=int, default=2048)
 parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints')
-parser.add_argument('--l2', type=float, default=0.0001)
-parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--l2', type=float, default=0.0)
+parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--sparse', type=str2bool, default=False)
 
 
 def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sparse):
-    #L = get_ratings('ratings_small.csv')
-    #user_ids, wine_ids, ratings = zip(*L)
-    with open('ratings.pkl', 'rb') as f:
-        user_ids, wine_ids, ratings = pickle.load(f)
+    L = get_ratings('filtered_ratings.csv')
+    user_ids, wine_ids, ratings = zip(*L)
+    #with open('ratings.pkl', 'rb') as f:
+    #    user_ids, wine_ids, ratings = pickle.load(f)
 
-    user_id_mapping = {user_id:i for i, user_id in enumerate(set(user_ids))}
-    wine_id_mapping = {wine_id:i for i, wine_id in enumerate(set(wine_ids))}
+    user_id_mapping = {user_id:i for i, user_id in enumerate(sorted(set(user_ids)))}
+    wine_id_mapping = {wine_id:i for i, wine_id in enumerate(sorted(set(wine_ids)))}
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
-    ratings = np.array(ratings)    
+    ratings = np.array(ratings)
 
     dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings)
     train, test = random_train_test_split(dataset, random_state=np.random.RandomState(seed))
@@ -81,9 +81,11 @@ def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sp
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         torch.save(model, f'{checkpoint_dir}/model_{epoch:04d}.pt')
-        train_rmse = rmse_score(model, train)
-        test_rmse = rmse_score(model, test)
-        print('         Train RMSE {:.3f}, Test RMSE {:.3f}'.format(train_rmse, test_rmse))
+        continue
+        with torch.no_grad():
+            train_rmse = rmse_score(model, train)
+            test_rmse = rmse_score(model, test)
+            print('         Train RMSE {:.3f}, Test RMSE {:.3f}'.format(train_rmse, test_rmse))
 
 
 if __name__ == '__main__':
