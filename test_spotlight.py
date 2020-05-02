@@ -70,14 +70,15 @@ def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sp
     ratings = np.array(ratings)
 
     dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings)
-    train, test = random_train_test_split(dataset, random_state=np.random.RandomState(seed))
+    random_state = np.random.RandomState(seed)
+    train, test = random_train_test_split(dataset, random_state=random_state)
 
     representation = BilinearNet(dataset.num_users, dataset.num_items, embedding_dim, sparse=sparse)
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)
         #representation = DataParallelModel(representation)
 
-    model = ExplicitFactorizationModel(n_iter=1, l2=l2, learning_rate=lr, embedding_dim=embedding_dim, use_cuda=True, batch_size=batch_size, representation=representation, sparse=sparse)
+    model = ExplicitFactorizationModel(n_iter=1, l2=l2, learning_rate=lr, embedding_dim=embedding_dim, use_cuda=True, batch_size=batch_size, representation=representation, sparse=sparse, random_state=random_state)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         torch.save(model, f'{checkpoint_dir}/model_{epoch:04d}.pt')
