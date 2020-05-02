@@ -12,7 +12,6 @@ from spotlight.evaluation import rmse_score
 from spotlight.interactions import Interactions
 from spotlight.factorization.explicit import ExplicitFactorizationModel
 from spotlight.factorization.representations import BilinearNet
-from parallel import DataParallelModel
 
 
 class Timer:
@@ -74,9 +73,9 @@ def main(batch_size, embedding_dim, checkpoint_dir, num_epochs, l2, lr, seed, sp
     train, test = random_train_test_split(dataset, random_state=random_state)
 
     representation = BilinearNet(dataset.num_users, dataset.num_items, embedding_dim, sparse=sparse)
+    representation = NCF(dataset.num_users, dataset.num_items, embedding_dim, layers=[2*embedding_dim, embedding_dim], dropout=0.0)
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)
-        #representation = DataParallelModel(representation)
 
     model = ExplicitFactorizationModel(n_iter=1, l2=l2, learning_rate=lr, embedding_dim=embedding_dim, use_cuda=True, batch_size=batch_size, representation=representation, sparse=sparse, random_state=random_state)
     for epoch in range(num_epochs):
