@@ -71,6 +71,9 @@ class ExplicitFactorizationModel(object):
                  l2=0.0,
                  learning_rate=1e-2,
                  layers=[32, 16],
+                 user_id_mapping=None,
+                 wine_id_mapping=None,
+                 ws_id_mapping=None,
                  optimizer_func=None,
                  use_cuda=False,
                  sparse=False,
@@ -96,6 +99,10 @@ class ExplicitFactorizationModel(object):
         self._net = None
         self._optimizer = None
         self._loss_func = None
+
+        self._user_id_mapping = user_id_mapping
+        self._wine_id_mapping = wine_id_mapping
+        self._ws_id_mapping = ws_id_mapping
 
         set_seed(self._random_state.randint(-10**8, 10**8),
                  cuda=self._use_cuda)

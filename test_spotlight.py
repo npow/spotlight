@@ -113,6 +113,9 @@ def main(
         sparse=sparse,
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
+        user_id_mapping=user_id_mapping,
+        wine_id_mapping=wine_id_mapping,
+        ws_id_mapping=ws_id_mapping,
     )
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
