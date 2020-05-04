@@ -62,6 +62,7 @@ parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
 parser.add_argument("--ws_file", type=str, default="wine_style_mapping.pkl")
+parser.add_argument("--loss", type=str, default="huber")
 
 
 def main(
@@ -76,6 +77,7 @@ def main(
     seed,
     sparse,
     use_cuda,
+    loss,
 ):
     L = get_ratings(input_file)
     ws_mapping = get_ws_mapping(ws_file)
@@ -89,7 +91,7 @@ def main(
     wine_id_mapping = {wine_id: i for i, wine_id in enumerate(uniq_wine_ids)}
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
-    ratings = np.array([(r-1.)/4. for r in ratings])
+    ratings = np.array([100*(r-1.)/4. for r in ratings])
 
     ws_ids = [ws_mapping[wine_id] for wine_id in uniq_wine_ids]
     uniq_ws_ids = sorted(set(ws_ids))
@@ -116,6 +118,7 @@ def main(
         user_id_mapping=user_id_mapping,
         wine_id_mapping=wine_id_mapping,
         ws_id_mapping=ws_id_mapping,
+        loss=loss,
     )
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)

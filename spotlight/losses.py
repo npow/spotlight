@@ -9,7 +9,6 @@ models.
 """
 
 import torch
-
 import torch.nn.functional as F
 
 from spotlight.torch_utils import assert_no_grad
@@ -213,3 +212,7 @@ def poisson_loss(observed_ratings, predicted_ratings):
     assert_no_grad(observed_ratings)
 
     return (predicted_ratings - observed_ratings * torch.log(predicted_ratings)).mean()
+
+
+def huber_loss(observed_ratings, predicted_ratings):
+    return F.smooth_l1_loss(observed_ratings, predicted_ratings.squeeze(1))

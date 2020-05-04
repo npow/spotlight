@@ -232,4 +232,4 @@ class HybridNCF(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         logits = self.output_layer(x)
         rating = torch.sigmoid(logits) + user_bias + item_bias
-        return rating
+        return rating * 100.

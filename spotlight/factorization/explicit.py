@@ -15,8 +15,7 @@ from spotlight.factorization.representations import (BilinearNet,
                                                      FeatureNet,
                                                      HybridContainer,
                                                      HybridNCF)
-from spotlight.losses import (regression_loss,
-                              poisson_loss)
+from spotlight.losses import (regression_loss, huber_loss, poisson_loss)
 from spotlight.torch_utils import cpu, gpu, set_seed
 from tqdm import tqdm
 
@@ -39,7 +38,7 @@ class ExplicitFactorizationModel(object):
     ----------
 
     loss: string, optional
-        One of 'regression', 'poisson',
+        One of 'regression', 'poisson', 'huber'
         corresponding to losses from :class:`spotlight.losses`.
     embedding_dim: int, optional
         Number of embedding dimensions to use for users and items.
@@ -64,7 +63,7 @@ class ExplicitFactorizationModel(object):
     """
 
     def __init__(self,
-                 loss='regression',
+                 loss='huber',
                  embedding_dim=32,
                  n_iter=10,
                  batch_size=256,
@@ -79,8 +78,7 @@ class ExplicitFactorizationModel(object):
                  sparse=False,
                  random_state=None):
 
-        assert loss in ('regression',
-                        'poisson')
+        assert loss in ('regression', 'huber', 'poisson')
 
         self._loss = loss
         self._embedding_dim = embedding_dim
@@ -99,6 +97,7 @@ class ExplicitFactorizationModel(object):
         self._net = None
         self._optimizer = None
         self._loss_func = None
+        self._num_epochs = 0
 
         self._user_id_mapping = user_id_mapping
         self._wine_id_mapping = wine_id_mapping
@@ -166,6 +165,8 @@ class ExplicitFactorizationModel(object):
             self._loss_func = regression_loss
         elif self._loss == 'poisson':
             self._loss_func = poisson_loss
+        elif self._loss == 'huber':
+            self._loss_func = huber_loss
         else:
             raise ValueError('Unknown loss: {}'.format(self._loss))
 
@@ -246,9 +247,10 @@ class ExplicitFactorizationModel(object):
                 self._optimizer.step()
 
             epoch_loss /= minibatch_num + 1
+            self._num_epochs += 1
 
             if verbose:
-                print('Epoch {}: loss {}'.format(epoch_num, epoch_loss))
+                print('Epoch {}: loss {}'.format(self._num_epochs, epoch_loss))
 
     def predict(self, user_ids, item_ids=None,
                 user_features=None,
