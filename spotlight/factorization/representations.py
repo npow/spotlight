@@ -70,7 +70,7 @@ class FeatureNet(nn.Module):
         self.embeddings = ScaledEmbedding(input_dim, output_dim, sparse=False)
 
     def forward(self, features):
-        feature_embeddings = self.embeddings(features).mean(dim=1)
+        feature_embeddings = self.embeddings(features).sum(dim=1)
         return self.nonlinearity(feature_embeddings)
 
 
