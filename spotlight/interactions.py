@@ -92,6 +92,16 @@ def _float_or_none(arg):
         return arg.astype(np.float32)
 
 
+def _int_or_none(arg):
+
+    if arg is None:
+        return None
+    elif isinstance(arg, tuple):
+        return (x.astype(np.int64) for x in arg)
+    else:
+        return arg.astype(np.int64)
+
+
 class Interactions(object):
     """
     Interactions object. Contains (at a minimum) pair of user-item
@@ -168,9 +178,9 @@ class Interactions(object):
         self.timestamps = timestamps
         self.weights = _float_or_none(weights)
 
-        self.user_features = _float_or_none(user_features)
-        self.item_features = _float_or_none(item_features)
-        self.context_features = _float_or_none(context_features)
+        self.user_features = _int_or_none(user_features)
+        self.item_features = _int_or_none(item_features)
+        self.context_features = _int_or_none(context_features)
 
         self._check()
 
@@ -328,6 +338,9 @@ class Interactions(object):
         return _dim_or_zero(self.context_features)
 
     def num_item_features(self):
+        if self.item_features is None:
+            return 0
+        return int(self.item_features.max() + 1)
 
         return _dim_or_zero(self.item_features)
 

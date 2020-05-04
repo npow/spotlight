@@ -13,7 +13,8 @@ from spotlight.factorization._components import (_predict_process_features,
                                                  _predict_process_ids)
 from spotlight.factorization.representations import (BilinearNet,
                                                      FeatureNet,
-                                                     HybridContainer)
+                                                     HybridContainer,
+                                                     HybridNCF)
 from spotlight.losses import (regression_loss,
                               poisson_loss)
 from spotlight.torch_utils import cpu, gpu, set_seed
@@ -68,6 +69,7 @@ class ExplicitFactorizationModel(object):
                  batch_size=256,
                  l2=0.0,
                  learning_rate=1e-2,
+                 layers=[32, 16],
                  optimizer_func=None,
                  use_cuda=False,
                  sparse=False,
@@ -86,6 +88,7 @@ class ExplicitFactorizationModel(object):
         self._sparse = sparse
         self._optimizer_func = optimizer_func
         self._random_state = random_state or np.random.RandomState()
+        self._layers = layers
 
         self._num_users = None
         self._num_items = None
@@ -133,10 +136,13 @@ class ExplicitFactorizationModel(object):
         else:
             item_net = None
 
-        self._net = gpu(HybridContainer(latent_net,
-                                        user_net,
-                                        context_net,
-                                        item_net),
+        self._net = gpu(HybridNCF(
+                            latent_module=latent_net,
+                            user_module=user_net,
+                            context_module=context_net,
+                            item_module=item_net,
+                            layers=self._layers,
+                        ),
                         self._use_cuda)
 
         if self._optimizer_func is None:
@@ -227,7 +233,7 @@ class ExplicitFactorizationModel(object):
                 self._optimizer.zero_grad()
 
                 loss = self._loss_func(minibatch.ratings, predictions)
-                epoch_loss += loss.data[0]
+                epoch_loss += loss.item()
 
                 loss.backward()
                 self._optimizer.step()

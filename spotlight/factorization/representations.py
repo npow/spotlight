@@ -3,6 +3,7 @@ Classes defining user and item latent representations in
 factorization models.
 """
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -47,7 +48,7 @@ class HybridContainer(nn.Module):
 
 class FeatureNet(nn.Module):
 
-    def __init__(self, input_dim, output_dim, bias=False, nonlinearity='tanh'):
+    def __init__(self, input_dim, output_dim, bias=False, nonlinearity='linear'):
 
         super(FeatureNet, self).__init__()
 
@@ -58,7 +59,7 @@ class FeatureNet(nn.Module):
         elif nonlinearity == 'sigmoid':
             self.nonlinearity = F.sigmoid
         elif nonlinearity == 'linear':
-            self.nonlinearity = lambda x: x
+            self.nonlinearity = nn.Identity()
         else:
             raise ValueError('Nonlineariy must be one of '
                              '(tanh, relu, sigmoid, linear)')
@@ -66,13 +67,15 @@ class FeatureNet(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.fc_1 = nn.Linear(self.input_dim,
+        self.embeddings = ScaledEmbedding(input_dim, output_dim, sparse=False)
+
+        self.fc_1 = nn.Linear(self.output_dim,
                               self.output_dim,
                               bias=bias)
 
     def forward(self, features):
-
-        return self.nonlinearity(self.fc_1(features))
+        feature_embeddings = self.embeddings(features).mean(dim=1)
+        return self.nonlinearity(self.fc_1(feature_embeddings))
 
 
 class BilinearNet(nn.Module):
@@ -149,3 +152,87 @@ class BilinearNet(nn.Module):
         dot = (user_representation * item_representation).sum(1)
 
         return dot + user_bias + item_bias
+
+
+
+class HybridContainer(nn.Module):
+
+    def __init__(self,
+                 latent_module,
+                 user_module=None,
+                 context_module=None,
+                 item_module=None):
+
+        super(HybridContainer, self).__init__()
+
+        self.latent = latent_module
+        self.user = user_module
+        self.context = context_module
+        self.item = item_module
+
+    def forward(self, user_ids,
+                item_ids,
+                user_features=None,
+                context_features=None,
+                item_features=None):
+
+        user_representation, user_bias = self.latent.user_representation(user_ids)
+        item_representation, item_bias = self.latent.item_representation(item_ids)
+
+        if self.user is not None:
+            user_representation += self.user(user_features)
+        if self.context is not None:
+            user_representation += self.context(context_features)
+        if self.item is not None:
+            item_representation += self.item(item_features)
+
+        dot = (user_representation * item_representation).sum(1)
+
+        return dot + user_bias + item_bias
+
+
+
+class HybridNCF(nn.Module):
+
+    def __init__(self, latent_module, user_module=None, context_module=None, item_module=None, layers=[16, 8], dropout=0.0):
+        super().__init__()
+        embedding_dim = latent_module.embedding_dim
+        assert (layers[0] == 2 * embedding_dim), "layers[0] must be 2*embedding_dim"
+        self.latent = latent_module
+        self.user = user_module
+        self.context = context_module
+        self.item = item_module
+        self.dropout = dropout
+        self.max_rating = 5.
+        self.min_rating = 1.
+
+        self.fc_layers = nn.ModuleList()
+        for _, (in_size, out_size) in enumerate(zip(layers[:-1], layers[1:])):
+            self.fc_layers.append(nn.Linear(in_size, out_size))
+        self.output_layer = nn.Linear(layers[-1], 1)
+
+
+    def forward(self, user_ids,
+                item_ids,
+                user_features=None,
+                context_features=None,
+                item_features=None):
+        user_embedding, user_bias = self.latent.user_representation(user_ids)
+        item_embedding, item_bias = self.latent.item_representation(item_ids)
+
+        if self.user is not None:
+            user_embedding += self.user(user_features)
+        if self.context is not None:
+            user_embedding += self.context(context_features)
+        if self.item is not None:
+            item_embedding += self.item(item_features)
+
+        x = torch.cat([user_embedding, item_embedding], 1)
+        for idx, _ in enumerate(range(len(self.fc_layers))):
+            x = self.fc_layers[idx](x)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        logits = self.output_layer(x)
+        rating = torch.sigmoid(logits) * (self.max_rating - self.min_rating + 1) + self.min_rating - 0.5
+        rating += user_bias + item_bias
+        return rating
