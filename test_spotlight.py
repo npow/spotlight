@@ -63,6 +63,7 @@ parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
 parser.add_argument("--ws_file", type=str, default="wine_style_mapping.pkl")
 parser.add_argument("--loss", type=str, default="huber")
+parser.add_argument("--reserved_user_ids", type=int, default=1000)
 
 
 def main(
@@ -78,6 +79,7 @@ def main(
     sparse,
     use_cuda,
     loss,
+    reserved_user_ids,
 ):
     L = get_ratings(input_file)
     ws_mapping = get_ws_mapping(ws_file)
@@ -98,7 +100,8 @@ def main(
     ws_id_mapping = {ws_id: i for i, ws_id in enumerate(ws_ids)}
     ws_idxs = np.array([ws_id_mapping[x] for x in ws_ids]).reshape((-1, 1))
 
-    dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=ws_idxs)
+    num_users = len(uniq_user_ids) + reserved_user_ids
+    dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=ws_idxs, num_users=num_users)
     random_state = np.random.RandomState(seed)
     train, test = random_train_test_split(dataset, random_state=random_state, test_percentage=0.1)
 
