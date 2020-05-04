@@ -203,8 +203,6 @@ class HybridNCF(nn.Module):
         self.context = context_module
         self.item = item_module
         self.dropout = dropout
-        self.max_rating = 5.
-        self.min_rating = 1.
 
         self.fc_layers = nn.ModuleList()
         for _, (in_size, out_size) in enumerate(zip(layers[:-1], layers[1:])):
@@ -233,6 +231,5 @@ class HybridNCF(nn.Module):
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
         logits = self.output_layer(x)
-        rating = torch.sigmoid(logits) * (self.max_rating - self.min_rating + 1) + self.min_rating - 0.5
-        rating += user_bias + item_bias
+        rating = torch.sigmoid(logits) + user_bias + item_bias
         return rating

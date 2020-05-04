@@ -89,7 +89,7 @@ def main(
     wine_id_mapping = {wine_id: i for i, wine_id in enumerate(uniq_wine_ids)}
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
-    ratings = np.array(ratings)
+    ratings = np.array([(r-1.)/4. for r in ratings])
 
     ws_ids = [ws_mapping[wine_id] for wine_id in uniq_wine_ids]
     uniq_ws_ids = sorted(set(ws_ids))
@@ -98,7 +98,7 @@ def main(
 
     dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=ws_idxs)
     random_state = np.random.RandomState(seed)
-    train, test = random_train_test_split(dataset, random_state=random_state)
+    train, test = random_train_test_split(dataset, random_state=random_state, test_percentage=0.1)
 
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)

@@ -18,6 +18,7 @@ from spotlight.factorization.representations import (BilinearNet,
 from spotlight.losses import (regression_loss,
                               poisson_loss)
 from spotlight.torch_utils import cpu, gpu, set_seed
+from tqdm import tqdm
 
 
 class ExplicitFactorizationModel(object):
@@ -212,10 +213,9 @@ class ExplicitFactorizationModel(object):
             interactions.shuffle(random_state=self._random_state)
 
             epoch_loss = 0.0
-
-            for (minibatch_num,
-                 minibatch) in enumerate(interactions
-                                         .minibatches(batch_size=self._batch_size)):
+            batches = interactions.minibatches(batch_size=self._batch_size)
+            total = len(interactions) // self._batch_size
+            for (minibatch_num, minibatch) in enumerate(tqdm(batches, total=total)):
 
                 minibatch = minibatch.torch(self._use_cuda).variable()
 
