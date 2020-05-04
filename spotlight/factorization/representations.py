@@ -69,13 +69,9 @@ class FeatureNet(nn.Module):
 
         self.embeddings = ScaledEmbedding(input_dim, output_dim, sparse=False)
 
-        self.fc_1 = nn.Linear(self.output_dim,
-                              self.output_dim,
-                              bias=bias)
-
     def forward(self, features):
         feature_embeddings = self.embeddings(features).mean(dim=1)
-        return self.nonlinearity(self.fc_1(feature_embeddings))
+        return self.nonlinearity(feature_embeddings)
 
 
 class BilinearNet(nn.Module):
