@@ -104,6 +104,7 @@ def main(
     dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=ws_idxs, num_users=num_users)
     random_state = np.random.RandomState(seed)
     train, test = random_train_test_split(dataset, random_state=random_state, test_percentage=0.1)
+    all_item_ids = list(uniq_wine_ids)
 
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)
@@ -126,11 +127,10 @@ def main(
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
-        continue
         with torch.no_grad():
-            train_rmse = rmse_score(model, train)
-            test_rmse = rmse_score(model, test)
-            print("         Train RMSE {:.3f}, Test RMSE {:.3f}".format(train_rmse, test_rmse))
+            test_item_features = np.array([ws_mapping[all_item_ids[x]] for x in test.item_ids]).reshape((-1, 1))
+            predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
+            print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))
 
 
 if __name__ == "__main__":
