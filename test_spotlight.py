@@ -12,7 +12,7 @@ from spotlight.cross_validation import random_train_test_split
 from spotlight.evaluation import rmse_score
 from spotlight.interactions import Interactions
 from spotlight.factorization.explicit import ExplicitFactorizationModel
-from sklearn.preprocessing import MultiLabelBinarizer, LabelEncoder
+from sklearn.preprocessing import MultiLabelBinarizer
 from keras_preprocessing.sequence import pad_sequences
 
 
@@ -53,9 +53,9 @@ def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
 
 
-def get_wfs(wf_mapping, wine_ids, le):
+def get_wfs(wf_mapping, wine_ids, mlb):
     wine_features = [wf_mapping[wine_id] for wine_id in wine_ids]
-    item_features = [le.transform(wf).tolist() for wf in tqdm(wine_features)]
+    item_features = mlb.transform(wine_features).tolil().rows
     item_features = pad_sequences(item_features, maxlen=None, dtype='int64', padding='pre', truncating='pre', value=0)
     return item_features
 
@@ -112,9 +112,11 @@ def main(
     for wfs in wine_features:
         uniq_wine_features |= set(wfs)
     uniq_wine_features = ['<pad>'] + list(sorted(uniq_wine_features))
-    le = LabelEncoder()
-    le.fit(uniq_wine_features)
-    item_features = get_wfs(wf_mapping, uniq_wine_ids, le)
+
+    mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_wine_features)
+    mlb.fit(wine_features)
+
+    item_features = get_wfs(wf_mapping, uniq_wine_ids, mlb)
 
     num_users = len(uniq_user_ids) + reserved_user_ids
     dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=item_features, num_users=num_users)
@@ -135,24 +137,29 @@ def main(
         sparse=sparse,
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
-        user_id_mapping=user_id_mapping,
-        wine_id_mapping=wine_id_mapping,
-        wf_mapping=wf_mapping,
-        le=le,
         loss=loss,
     )
 
-    train_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in train.item_ids], le)
-    test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], le)
+    with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:
+        mappings = {
+            "user_id_mapping": user_id_mapping,
+            "wine_id_mapping": wine_id_mapping,
+            "wf_mapping": wf_mapping,
+            "mlb": mlb,
+        }
+        pickle.dump(mappings, f)
+
+    train_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in train.item_ids], mlb)
+    test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], mlb)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
-            predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
-            print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))
-
             predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
             print('train rmse: ', np.sqrt(((train.ratings - predictions) ** 2).mean()))
+
+            predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
+            print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))
 
 
 
