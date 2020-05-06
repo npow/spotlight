@@ -1,5 +1,6 @@
 import argparse
 import csv
+import itertools
 import numpy as np
 import pickle
 import os
@@ -11,6 +12,9 @@ from spotlight.cross_validation import random_train_test_split
 from spotlight.evaluation import rmse_score
 from spotlight.interactions import Interactions
 from spotlight.factorization.explicit import ExplicitFactorizationModel
+from sklearn.preprocessing import MultiLabelBinarizer, LabelEncoder
+from keras_preprocessing.sequence import pad_sequences
+
 
 
 class Timer:
@@ -40,13 +44,20 @@ def get_ratings(fname):
     return L
 
 
-def get_ws_mapping(fname):
+def get_wf_mapping(fname):
     with open(fname, 'rb') as f:
         return pickle.load(f)
 
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
+
+
+def get_wfs(wf_mapping, wine_ids, le):
+    wine_features = [wf_mapping[wine_id] for wine_id in wine_ids]
+    item_features = [le.transform(wf).tolist() for wf in tqdm(wine_features)]
+    item_features = pad_sequences(item_features, maxlen=None, dtype='int64', padding='pre', truncating='pre', value=0)
+    return item_features
 
 
 parser = argparse.ArgumentParser()
@@ -61,14 +72,14 @@ parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
-parser.add_argument("--ws_file", type=str, default="wine_style_mapping.pkl")
+parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_filtered.pkl")
 parser.add_argument("--loss", type=str, default="regression")
 parser.add_argument("--reserved_user_ids", type=int, default=1000)
 
 
 def main(
     input_file,
-    ws_file,
+    wf_file,
     batch_size,
     embedding_dim,
     checkpoint_dir,
@@ -82,7 +93,7 @@ def main(
     reserved_user_ids,
 ):
     L = get_ratings(input_file)
-    ws_mapping = get_ws_mapping(ws_file)
+    wf_mapping = get_wf_mapping(wf_file)
     user_ids, wine_ids, ratings = zip(*L)
     # with open('ratings.pkl', 'rb') as f:
     #    user_ids, wine_ids, ratings = pickle.load(f)
@@ -96,13 +107,17 @@ def main(
     #ratings = np.array([(r-1.)/4. for r in ratings], dtype=np.float32)
     ratings = np.array([r for r in ratings], dtype=np.float32)
 
-    ws_ids = [ws_mapping[wine_id] for wine_id in uniq_wine_ids]
-    uniq_ws_ids = sorted(set(ws_ids))
-    ws_id_mapping = {ws_id: i for i, ws_id in enumerate(ws_ids)}
-    ws_idxs = np.array([ws_id_mapping[x] for x in ws_ids]).reshape((-1, 1))
+    wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
+    uniq_wine_features = set()
+    for wfs in wine_features:
+        uniq_wine_features |= set(wfs)
+    uniq_wine_features = ['<pad>'] + list(sorted(uniq_wine_features))
+    le = LabelEncoder()
+    le.fit(uniq_wine_features)
+    item_features = get_wfs(wf_mapping, uniq_wine_ids, le)
 
     num_users = len(uniq_user_ids) + reserved_user_ids
-    dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=ws_idxs, num_users=num_users)
+    dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=item_features, num_users=num_users)
     random_state = np.random.RandomState(seed)
     train, test = random_train_test_split(dataset, random_state=random_state, test_percentage=0.1)
     all_item_ids = list(uniq_wine_ids)
@@ -122,20 +137,23 @@ def main(
         layers=[2*embedding_dim, embedding_dim],
         user_id_mapping=user_id_mapping,
         wine_id_mapping=wine_id_mapping,
-        ws_id_mapping=ws_id_mapping,
+        wf_mapping=wf_mapping,
+        le=le,
         loss=loss,
     )
+
+    train_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in train.item_ids], le)
+    test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], le)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
-            train_item_features = np.array([ws_mapping[all_item_ids[x]] for x in train.item_ids]).reshape((-1, 1))
+            predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
+            print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))
+
             predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
             print('train rmse: ', np.sqrt(((train.ratings - predictions) ** 2).mean()))
 
-            test_item_features = np.array([ws_mapping[all_item_ids[x]] for x in test.item_ids]).reshape((-1, 1))
-            predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
-            print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))
 
 
 if __name__ == "__main__":
