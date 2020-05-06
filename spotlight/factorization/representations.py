@@ -24,7 +24,7 @@ class HybridContainer(nn.Module):
         self.user = user_module
         self.context = context_module
         self.item = item_module
-        self.mu = torch.nn.Parameter(torch.ones(1))
+        self.mu = torch.ones(1)
         self.mu.data.fill_(3.72)
 
     def forward(self, user_ids,
@@ -43,8 +43,8 @@ class HybridContainer(nn.Module):
         if self.item is not None:
             item_representation += self.item(item_features)
 
-        dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
-        #dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
+        #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
+        dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
         return dot + user_bias + item_bias + self.mu
 
 
