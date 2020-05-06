@@ -56,7 +56,7 @@ parser.add_argument("--embedding_dim", type=int, default=10)
 parser.add_argument("--batch_size", type=int, default=2048)
 parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints")
 parser.add_argument("--l2", type=float, default=1e-5)
-parser.add_argument("--lr", type=float, default=1e-3)
+parser.add_argument("--lr", type=float, default=0.05)
 parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
@@ -93,7 +93,8 @@ def main(
     wine_id_mapping = {wine_id: i for i, wine_id in enumerate(uniq_wine_ids)}
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
-    ratings = np.array([(r-1.)/4. for r in ratings])
+    #ratings = np.array([(r-1.)/4. for r in ratings], dtype=np.float32)
+    ratings = np.array([r for r in ratings], dtype=np.float32)
 
     ws_ids = [ws_mapping[wine_id] for wine_id in uniq_wine_ids]
     uniq_ws_ids = sorted(set(ws_ids))

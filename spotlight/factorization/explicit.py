@@ -232,7 +232,7 @@ class ExplicitFactorizationModel(object):
                                         minibatch.context_features,
                                         minibatch.get_item_features(
                                             minibatch.item_ids
-                                        ))
+                                        )).squeeze(1)
 
                 if self._loss == 'poisson':
                     predictions = torch.exp(predictions)

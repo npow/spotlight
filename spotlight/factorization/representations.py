@@ -41,9 +41,10 @@ class HybridContainer(nn.Module):
         if self.item is not None:
             item_representation += self.item(item_features)
 
-        dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
-
-        return dot + user_bias + item_bias
+        #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
+        dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
+        logits = dot + user_bias + item_bias
+        return logits
 
 
 class FeatureNet(nn.Module):
