@@ -24,8 +24,7 @@ class HybridContainer(nn.Module):
         self.user = user_module
         self.context = context_module
         self.item = item_module
-        self.mu = torch.ones(1)
-        self.mu.data.fill_(3.72)
+        self.mu = 3.72
 
     def forward(self, user_ids,
                 item_ids,
@@ -70,6 +69,7 @@ class FeatureNet(nn.Module):
         self.output_dim = output_dim
 
         self.embeddings = nn.Embedding(input_dim, output_dim, sparse=False, padding_idx=0)
+        self.embeddings.weight.data.normal_(0, 0.1)
 
     def forward(self, features):
         feature_embeddings = self.embeddings(features).sum(dim=1)
@@ -107,6 +107,9 @@ class BilinearNet(nn.Module):
         self.item_embeddings = nn.Embedding(num_items, embedding_dim, sparse=sparse)
         self.user_biases = ZeroEmbedding(num_users, 1, sparse=sparse)
         self.item_biases = ZeroEmbedding(num_items, 1, sparse=sparse)
+
+        self.user_embeddings.weight.data.normal_(0, 0.1)
+        self.item_embeddings.weight.data.normal_(0, 0.1)
 
     def user_representation(self, user_ids):
 
