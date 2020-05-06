@@ -69,7 +69,7 @@ class FeatureNet(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.embeddings = ScaledEmbedding(input_dim, output_dim, sparse=False, padding_idx=0)
+        self.embeddings = nn.Embedding(input_dim, output_dim, sparse=False, padding_idx=0)
 
     def forward(self, features):
         feature_embeddings = self.embeddings(features).sum(dim=1)
