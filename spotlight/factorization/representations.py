@@ -44,7 +44,8 @@ class HybridContainer(nn.Module):
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
         dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
         logits = dot + user_bias + item_bias
-        return logits
+        #return logits
+        return torch.sigmoid(logits) * 5 + 0.5
 
 
 class FeatureNet(nn.Module):
