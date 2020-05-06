@@ -150,7 +150,7 @@ def main(
         }
         pickle.dump(mappings, f)
 
-    train_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in train.item_ids], mlb)
+    #train_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in train.item_ids], mlb)
     test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], mlb)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
@@ -162,8 +162,8 @@ def main(
             predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
             print('test rmse: ', np.sqrt((((test.ratings) - (predictions)) ** 2).mean()))
 
-            predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
-            print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))
+            #predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
+            #print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))
 
 
 
