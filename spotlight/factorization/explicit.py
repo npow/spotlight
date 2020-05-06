@@ -154,6 +154,15 @@ class ExplicitFactorizationModel(object):
                         self._use_cuda)
 
         if self._optimizer_func is None:
+            '''
+            L_params = list(self._net.parameters())
+            bias_params = [p for p in L_params if p.size()[-1] == 1]
+            embedding_params = [p for p in L_params if p.size()[-1] != 1]
+            params = [
+                {"params": bias_params, "weight_decay": 0.0},
+                {"params": embedding_params }
+            ]
+            '''
             self._optimizer = optim.Adam(
                 self._net.parameters(),
                 weight_decay=self._l2,

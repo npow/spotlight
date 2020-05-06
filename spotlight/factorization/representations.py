@@ -24,6 +24,8 @@ class HybridContainer(nn.Module):
         self.user = user_module
         self.context = context_module
         self.item = item_module
+        self.mu = torch.nn.Parameter(torch.ones(1))
+        self.mu.data.fill_(3.72)
 
     def forward(self, user_ids,
                 item_ids,
@@ -41,11 +43,9 @@ class HybridContainer(nn.Module):
         if self.item is not None:
             item_representation += self.item(item_features)
 
-        #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
-        dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
-        logits = dot + user_bias + item_bias
-        #return logits
-        return torch.sigmoid(logits) * 5 + 0.5
+        dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
+        #dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
+        return dot + user_bias + item_bias + self.mu
 
 
 class FeatureNet(nn.Module):
@@ -103,10 +103,8 @@ class BilinearNet(nn.Module):
 
         self.embedding_dim = embedding_dim
 
-        self.user_embeddings = ScaledEmbedding(num_users, embedding_dim,
-                                               sparse=sparse)
-        self.item_embeddings = ScaledEmbedding(num_items, embedding_dim,
-                                               sparse=sparse)
+        self.user_embeddings = nn.Embedding(num_users, embedding_dim, sparse=sparse)
+        self.item_embeddings = nn.Embedding(num_items, embedding_dim, sparse=sparse)
         self.user_biases = ZeroEmbedding(num_users, 1, sparse=sparse)
         self.item_biases = ZeroEmbedding(num_items, 1, sparse=sparse)
 
@@ -193,6 +191,5 @@ class HybridNCF(nn.Module):
             x = self.fc_layers[idx](x)
             x = F.relu(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
-        logits = self.output_layer(x) + user_bias + item_bias
-        rating = torch.sigmoid(logits)
-        return rating
+        logits = self.output_layer(x)
+        return logits

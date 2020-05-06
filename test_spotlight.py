@@ -12,7 +12,7 @@ from spotlight.cross_validation import random_train_test_split
 from spotlight.evaluation import rmse_score
 from spotlight.interactions import Interactions
 from spotlight.factorization.explicit import ExplicitFactorizationModel
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
 from keras_preprocessing.sequence import pad_sequences
 
 
@@ -107,6 +107,7 @@ def main(
     #ratings = np.array([(r-1.)/4. for r in ratings], dtype=np.float32)
     ratings = np.array([r for r in ratings], dtype=np.float32)
 
+
     wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
     uniq_wine_features = set()
     for wfs in wine_features:
@@ -153,13 +154,17 @@ def main(
     test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], mlb)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
-        torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
+        print(model._net.mu)
+        print(model._net.latent.user_biases.weight.data.max(), model._net.latent.user_biases.weight.data.min())
+        print(model._net.latent.item_biases.weight.data.max(), model._net.latent.item_biases.weight.data.min())
+        #torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
-            predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
-            print('train rmse: ', np.sqrt(((train.ratings - predictions) ** 2).mean()))
-
             predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
-            print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))
+            print('test rmse: ', np.sqrt((((test.ratings) - (predictions)) ** 2).mean()))
+
+            predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
+            print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))
+
 
 
 
