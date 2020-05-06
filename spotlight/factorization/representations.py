@@ -41,7 +41,7 @@ class HybridContainer(nn.Module):
         if self.item is not None:
             item_representation += self.item(item_features)
 
-        dot = (user_representation * item_representation).sum(1)
+        dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
 
         return dot + user_bias + item_bias
 
@@ -145,44 +145,7 @@ class BilinearNet(nn.Module):
             Tensor of predictions.
         """
 
-        dot = (user_representation * item_representation).sum(1)
-
-        return dot + user_bias + item_bias
-
-
-
-class HybridContainer(nn.Module):
-
-    def __init__(self,
-                 latent_module,
-                 user_module=None,
-                 context_module=None,
-                 item_module=None):
-
-        super(HybridContainer, self).__init__()
-
-        self.latent = latent_module
-        self.user = user_module
-        self.context = context_module
-        self.item = item_module
-
-    def forward(self, user_ids,
-                item_ids,
-                user_features=None,
-                context_features=None,
-                item_features=None):
-
-        user_representation, user_bias = self.latent.user_representation(user_ids)
-        item_representation, item_bias = self.latent.item_representation(item_ids)
-
-        if self.user is not None:
-            user_representation += self.user(user_features)
-        if self.context is not None:
-            user_representation += self.context(context_features)
-        if self.item is not None:
-            item_representation += self.item(item_features)
-
-        dot = (user_representation * item_representation).sum(1)
+        dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
 
         return dot + user_bias + item_bias
 
@@ -192,7 +155,9 @@ class HybridNCF(nn.Module):
 
     def __init__(self, latent_module, user_module=None, context_module=None, item_module=None, layers=[16, 8], dropout=0.0):
         super().__init__()
+        assert False
         embedding_dim = latent_module.embedding_dim
+        layers = [embedding_dim*2, embedding_dim]
         assert (layers[0] == 2 * embedding_dim), "layers[0] must be 2*embedding_dim"
         self.latent = latent_module
         self.user = user_module

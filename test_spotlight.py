@@ -128,6 +128,10 @@ def main(
         model.fit(train, verbose=True)
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
+            train_item_features = np.array([ws_mapping[all_item_ids[x]] for x in train.item_ids]).reshape((-1, 1))
+            predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
+            print('train rmse: ', np.sqrt(((train.ratings - predictions) ** 2).mean()))
+
             test_item_features = np.array([ws_mapping[all_item_ids[x]] for x in test.item_ids]).reshape((-1, 1))
             predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
             print('test rmse: ', np.sqrt(((test.ratings - predictions) ** 2).mean()))

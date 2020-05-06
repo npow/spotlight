@@ -143,12 +143,11 @@ class ExplicitFactorizationModel(object):
         else:
             item_net = None
 
-        self._net = gpu(HybridNCF(
+        self._net = gpu(HybridContainer(
                             latent_module=latent_net,
                             user_module=user_net,
                             context_module=context_net,
                             item_module=item_net,
-                            layers=self._layers,
                         ),
                         self._use_cuda)
 
@@ -159,7 +158,7 @@ class ExplicitFactorizationModel(object):
                 lr=self._learning_rate
             )
         else:
-            self._optimizer = self._optimizer_func(self._net.parameters())
+            self._optimizer = self._optimizer_func(self._net.parameters(), lr=self._learning_rate)
 
         if self._loss == 'regression':
             self._loss_func = regression_loss
