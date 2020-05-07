@@ -41,7 +41,9 @@ class HybridContainer(nn.Module):
         if self.context is not None:
             user_representation += self.context(context_features)
         if self.item is not None:
-            item_representation += self.item(item_features)
+            feature_representation, feature_bias = self.item(item_features)
+            item_representation += feature_representation
+            item_bias += feature_bias
 
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
         dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
@@ -53,7 +55,7 @@ class HybridContainer(nn.Module):
 
 class FeatureNet(nn.Module):
 
-    def __init__(self, input_dim, output_dim, bias=False, nonlinearity='linear'):
+    def __init__(self, num_features, embedding_dim, nonlinearity='linear', sparse=False):
 
         super(FeatureNet, self).__init__()
 
@@ -69,15 +71,17 @@ class FeatureNet(nn.Module):
             raise ValueError('Nonlineariy must be one of '
                              '(tanh, relu, sigmoid, linear)')
 
-        self.input_dim = input_dim
-        self.output_dim = output_dim
+        self.num_features = num_features
+        self.embedding_dim = embedding_dim
 
-        self.embeddings = nn.Embedding(input_dim, output_dim, sparse=False, padding_idx=0)
+        self.embeddings = nn.Embedding(num_features, embedding_dim, sparse=sparse, padding_idx=0)
         self.embeddings.weight.data.normal_(0, 0.1)
+        self.biases = ZeroEmbedding(num_features, 1, sparse=sparse)
 
     def forward(self, features):
-        feature_embeddings = self.embeddings(features).sum(dim=1)
-        return self.nonlinearity(feature_embeddings)
+        feature_embedding = self.embeddings(features).sum(dim=1)
+        feature_bias = self.biases(features).sum(dim=1)
+        return self.nonlinearity(feature_embedding), feature_bias
 
 
 class BilinearNet(nn.Module):
