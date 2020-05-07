@@ -74,6 +74,7 @@ class ExplicitFactorizationModel(object):
                  wine_id_mapping=None,
                  wf_mapping=None,
                  mlb=None,
+                 mu=None,
                  optimizer_func=None,
                  use_cuda=False,
                  sparse=False,
@@ -99,6 +100,7 @@ class ExplicitFactorizationModel(object):
         self._optimizer = None
         self._loss_func = None
         self._num_epochs = 0
+        self._mu = mu
 
         self._user_id_mapping = user_id_mapping
         self._wine_id_mapping = wine_id_mapping
@@ -150,6 +152,7 @@ class ExplicitFactorizationModel(object):
                             user_module=user_net,
                             context_module=context_net,
                             item_module=item_net,
+                            mu=self._mu,
                         ),
                         self._use_cuda)
 

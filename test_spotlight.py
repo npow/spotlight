@@ -60,6 +60,14 @@ def get_wfs(wf_mapping, wine_ids, mlb):
     return item_features
 
 
+def transform_rating(r):
+    if r < 4:
+        return 3.5
+    if r > 4:
+        return 4.5
+    return 4.0
+
+
 parser = argparse.ArgumentParser()
 parser.register("type", "bool", str2bool)
 parser.add_argument("--num_epochs", type=int, default=20)
@@ -72,7 +80,7 @@ parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
-parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_filtered.pkl")
+parser.add_argument("--wf_file", type=str, default="wine_feature_mapping.pkl")
 parser.add_argument("--loss", type=str, default="regression")
 parser.add_argument("--reserved_user_ids", type=int, default=1000)
 
@@ -105,7 +113,8 @@ def main(
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
     #ratings = np.array([(r-1.)/4. for r in ratings], dtype=np.float32)
-    ratings = np.array([r for r in ratings], dtype=np.float32)
+    ratings = np.array([transform_rating(r) for r in ratings], dtype=np.float32)
+    mu = ratings.mean()
 
 
     wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
@@ -139,6 +148,7 @@ def main(
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
         loss=loss,
+        mu=mu,
     )
 
     with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:

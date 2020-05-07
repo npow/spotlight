@@ -16,7 +16,8 @@ class HybridContainer(nn.Module):
                  latent_module,
                  user_module=None,
                  context_module=None,
-                 item_module=None):
+                 item_module=None,
+                 mu=None):
 
         super(HybridContainer, self).__init__()
 
@@ -24,7 +25,7 @@ class HybridContainer(nn.Module):
         self.user = user_module
         self.context = context_module
         self.item = item_module
-        self.mu = 3.72
+        self.mu = mu
 
     def forward(self, user_ids,
                 item_ids,
