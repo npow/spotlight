@@ -216,3 +216,7 @@ def poisson_loss(observed_ratings, predicted_ratings):
 
 def huber_loss(observed_ratings, predicted_ratings):
     return F.smooth_l1_loss(observed_ratings, predicted_ratings.squeeze(1))
+
+
+def bce_loss(observed, predicted):
+    return F.binary_cross_entropy(predicted, observed)

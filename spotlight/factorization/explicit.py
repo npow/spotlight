@@ -15,7 +15,7 @@ from spotlight.factorization.representations import (BilinearNet,
                                                      FeatureNet,
                                                      HybridContainer,
                                                      HybridNCF)
-from spotlight.losses import (regression_loss, huber_loss, poisson_loss)
+from spotlight.losses import (regression_loss, huber_loss, poisson_loss, bce_loss)
 from spotlight.torch_utils import cpu, gpu, set_seed
 from tqdm import tqdm
 
@@ -38,7 +38,7 @@ class ExplicitFactorizationModel(object):
     ----------
 
     loss: string, optional
-        One of 'regression', 'poisson', 'huber'
+        One of 'regression', 'poisson', 'huber', 'bce'
         corresponding to losses from :class:`spotlight.losses`.
     embedding_dim: int, optional
         Number of embedding dimensions to use for users and items.
@@ -80,7 +80,7 @@ class ExplicitFactorizationModel(object):
                  sparse=False,
                  random_state=None):
 
-        assert loss in ('regression', 'huber', 'poisson')
+        assert loss in ('regression', 'huber', 'poisson', 'bce')
 
         self._loss = loss
         self._embedding_dim = embedding_dim
@@ -178,6 +178,8 @@ class ExplicitFactorizationModel(object):
             self._loss_func = poisson_loss
         elif self._loss == 'huber':
             self._loss_func = huber_loss
+        elif self._loss == 'bce':
+            self._loss_func = bce_loss
         else:
             raise ValueError('Unknown loss: {}'.format(self._loss))
 
