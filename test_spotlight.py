@@ -87,7 +87,7 @@ parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
-parser.add_argument("--wf_file", type=str, default="wine_feature_mapping.pkl")
+parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_no_id.pkl")
 parser.add_argument("--loss", type=str, default="bce")
 parser.add_argument("--reserved_user_ids", type=int, default=1000)
 
