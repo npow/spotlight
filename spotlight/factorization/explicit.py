@@ -153,6 +153,7 @@ class ExplicitFactorizationModel(object):
                             context_module=context_net,
                             item_module=item_net,
                             mu=self._mu,
+                            loss=self._loss,
                         ),
                         self._use_cuda)
 

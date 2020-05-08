@@ -17,7 +17,8 @@ class HybridContainer(nn.Module):
                  user_module=None,
                  context_module=None,
                  item_module=None,
-                 mu=None):
+                 mu=None,
+                 loss=None):
 
         super(HybridContainer, self).__init__()
 
@@ -26,6 +27,7 @@ class HybridContainer(nn.Module):
         self.context = context_module
         self.item = item_module
         self.mu = mu
+        self.loss = loss
 
     def forward(self, user_ids,
                 item_ids,
@@ -47,10 +49,10 @@ class HybridContainer(nn.Module):
 
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
         dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
-        logits = torch.sigmoid(dot + user_bias + item_bias)
+        logits = dot + user_bias + item_bias  # + self.mu
+        if self.loss == 'bce':
+            logits = torch.sigmoid(logits)
         return logits
-
-        return dot + user_bias + item_bias + self.mu
 
 
 class FeatureNet(nn.Module):

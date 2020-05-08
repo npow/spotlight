@@ -120,7 +120,10 @@ def main(
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
     #ratings = np.array([(r-1.)/4. for r in ratings], dtype=np.float32)
-    ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
+    if loss == 'bce':
+        ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
+    else:
+        ratings = np.array([transform_rating(r) for r in ratings], dtype=np.int32)
     mu = ratings.mean()
 
 
