@@ -166,7 +166,7 @@ class ExplicitFactorizationModel(object):
                 {"params": embedding_params }
             ]
             self._optimizer = optim.Adam(
-                params,
+                L_params,
                 weight_decay=self._l2,
                 lr=self._learning_rate
             )

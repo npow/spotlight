@@ -62,11 +62,8 @@ def get_wfs(wf_mapping, wine_ids, mlb):
 
 
 def transform_rating(r):
-    if r < 4:
-        return 3.5
-    if r > 4:
-        return 4.5
-    return 4.0
+    r -= 4.
+    return np.clip(r, -0.5, 0.5)
 
 
 def rating_to_label(r):
@@ -123,7 +120,7 @@ def main(
     if loss == 'bce':
         ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
     else:
-        ratings = np.array([transform_rating(r) for r in ratings], dtype=np.int32)
+        ratings = np.array([transform_rating(r) for r in ratings], dtype=np.float32)
     mu = ratings.mean()
 
 
@@ -177,12 +174,14 @@ def main(
         print(model._net.mu)
         print(model._net.latent.user_biases.weight.data.max(), model._net.latent.user_biases.weight.data.min())
         print(model._net.latent.item_biases.weight.data.max(), model._net.latent.item_biases.weight.data.min())
-        #torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
+        torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
             predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
-            labels = [1 if p > 0.5 else 0 for p in predictions]
-            print(classification_report(test.ratings.astype(np.int32), labels))
-            #print('test rmse: ', np.sqrt((((test.ratings) - (predictions)) ** 2).mean()))
+            if loss == 'bce':
+                labels = [1 if p > 0.5 else 0 for p in predictions]
+                print(classification_report(test.ratings.astype(np.int32), labels))
+            else:
+                print('test rmse: ', np.sqrt((((test.ratings+4) - (predictions+4)) ** 2).mean()))
 
             #predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
             #print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))
