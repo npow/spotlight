@@ -61,9 +61,9 @@ def get_wfs(wf_mapping, wine_ids, mlb):
     return item_features
 
 
-def transform_rating(r):
-    r -= 4.
-    return np.clip(r, -0.5, 0.5)
+def transform_ratings(r):
+    r = np.clip(r, 3.0, 4.5)
+    return r
 
 
 def rating_to_label(r):
@@ -74,18 +74,18 @@ def rating_to_label(r):
 
 parser = argparse.ArgumentParser()
 parser.register("type", "bool", str2bool)
-parser.add_argument("--num_epochs", type=int, default=20)
+parser.add_argument("--num_epochs", type=int, default=10)
 parser.add_argument("--embedding_dim", type=int, default=10)
 parser.add_argument("--batch_size", type=int, default=2048)
 parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints")
-parser.add_argument("--l2", type=float, default=0.02)
-parser.add_argument("--lr", type=float, default=0.005)
+parser.add_argument("--l2", type=float, default=0.00)
+parser.add_argument("--lr", type=float, default=0.01)
 parser.add_argument("--seed", type=int, default=42)
 parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
 parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_no_id.pkl")
-parser.add_argument("--loss", type=str, default="bce")
+parser.add_argument("--loss", type=str, default="regression")
 parser.add_argument("--reserved_user_ids", type=int, default=1000)
 
 
@@ -116,12 +116,15 @@ def main(
     wine_id_mapping = {wine_id: i for i, wine_id in enumerate(uniq_wine_ids)}
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
-    #ratings = np.array([(r-1.)/4. for r in ratings], dtype=np.float32)
+    ratings = np.array(ratings)
     if loss == 'bce':
         ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
     else:
-        ratings = np.array([transform_rating(r) for r in ratings], dtype=np.float32)
+        ratings = transform_ratings(ratings)
+    scaler = StandardScaler(with_std=False)
+    ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
     mu = ratings.mean()
+    print('min: ', ratings.min(), 'max: ', ratings.max())
 
 
     wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
@@ -181,7 +184,9 @@ def main(
                 labels = [1 if p > 0.5 else 0 for p in predictions]
                 print(classification_report(test.ratings.astype(np.int32), labels))
             else:
-                print('test rmse: ', np.sqrt((((test.ratings+4) - (predictions+4)) ** 2).mean()))
+                print(scaler.inverse_transform(test.ratings[:10]))
+                print(scaler.inverse_transform(predictions[:10]))
+                print('test rmse: ', np.sqrt(((scaler.inverse_transform(test.ratings) - scaler.inverse_transform(predictions)) ** 2).mean()))
 
             #predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
             #print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))

@@ -50,6 +50,17 @@ class HybridContainer(nn.Module):
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
         dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
         return dot
+
+        u = user_representation
+        i = item_representation
+        u_norm = u / u.norm(dim=1).reshape((-1, 1))
+        i_norm = i / i.norm(dim=1).reshape((-1, 1))
+        dot = (u_norm * i_norm).sum(dim=1, keepdims=True)
+        return dot
+
+
+        dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
+        return dot
         logits = dot + user_bias + item_bias + self.mu
         if self.loss == 'bce':
             logits = torch.sigmoid(logits)
