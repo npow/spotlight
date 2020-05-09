@@ -124,7 +124,7 @@ def main(
     scaler = StandardScaler(with_std=False)
     ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
     mu = ratings.mean()
-    print('min: ', ratings.min(), 'max: ', ratings.max())
+    print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu, 'scaler: ', scaler.mean_)
 
 
     wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
