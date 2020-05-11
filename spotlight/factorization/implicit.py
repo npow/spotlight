@@ -247,7 +247,7 @@ class ImplicitFactorizationModel(object):
 
                 loss = self._loss_func(positive_prediction, negative_prediction)
                 loss += bce_loss(minibatch.ratings, positive_prediction)
-                loss += bce_loss(minibatch.ratings, negative_prediction)
+                loss += bce_loss(torch.zeros_like(minibatch.ratings), negative_prediction)
                 epoch_loss += loss.item()
 
                 loss.backward()
