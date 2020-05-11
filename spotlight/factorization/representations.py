@@ -48,7 +48,7 @@ class HybridContainer(nn.Module):
             item_bias += feature_bias
 
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
-        dot = torch.tanh(user_representation * item_representation).sum(dim=1, keepdims=True)
+        dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
         return dot
 
         u = user_representation

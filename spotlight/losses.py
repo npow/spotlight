@@ -219,4 +219,4 @@ def huber_loss(observed_ratings, predicted_ratings):
 
 
 def bce_loss(observed, predicted):
-    return F.binary_cross_entropy(predicted, observed)
+    return F.binary_cross_entropy_with_logits(predicted, observed)

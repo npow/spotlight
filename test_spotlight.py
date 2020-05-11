@@ -85,7 +85,7 @@ parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
 parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_no_id.pkl")
-parser.add_argument("--loss", type=str, default="regression")
+parser.add_argument("--loss", type=str, default="bce")
 parser.add_argument("--reserved_user_ids", type=int, default=1000)
 
 
@@ -121,10 +121,10 @@ def main(
         ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
     else:
         ratings = transform_ratings(ratings)
-    scaler = StandardScaler(with_std=False)
-    ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
-    mu = ratings.mean()
-    print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu, 'scaler: ', scaler.mean_)
+        scaler = StandardScaler(with_std=False)
+        ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
+        mu = ratings.mean()
+        print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu, 'scaler: ', scaler.mean_)
 
 
     wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
@@ -158,7 +158,6 @@ def main(
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
         loss=loss,
-        mu=mu,
     )
 
     with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:
