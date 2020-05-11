@@ -12,6 +12,7 @@ from spotlight.cross_validation import random_train_test_split
 from spotlight.evaluation import rmse_score
 from spotlight.interactions import Interactions
 from spotlight.factorization.explicit import ExplicitFactorizationModel
+from spotlight.factorization.implicit import ImplicitFactorizationModel
 from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
 from sklearn.metrics import *
 from keras_preprocessing.sequence import pad_sequences
@@ -85,8 +86,8 @@ parser.add_argument("--sparse", type=str2bool, default=False)
 parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
 parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_no_id.pkl")
-parser.add_argument("--loss", type=str, default="regression")
-parser.add_argument("--reserved_user_ids", type=int, default=1000)
+parser.add_argument("--loss", type=str, default="bce")
+parser.add_argument("--reserved_user_ids", type=int, default=0)
 
 
 def main(
@@ -121,10 +122,10 @@ def main(
         ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
     else:
         ratings = transform_ratings(ratings)
-    scaler = StandardScaler(with_std=False)
-    ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
+#    scaler = StandardScaler(with_std=False)
+#    ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
     mu = ratings.mean()
-    print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu, 'scaler: ', scaler.mean_)
+    print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu)
 
 
     wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
@@ -147,7 +148,8 @@ def main(
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)
 
-    model = ExplicitFactorizationModel(
+    model = ImplicitFactorizationModel(
+        loss='bpr',
         n_iter=1,
         l2=l2,
         learning_rate=lr,
@@ -156,9 +158,6 @@ def main(
         batch_size=batch_size,
         sparse=sparse,
         random_state=random_state,
-        layers=[2*embedding_dim, embedding_dim],
-        loss=loss,
-        mu=mu,
     )
 
     with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:
@@ -189,6 +188,8 @@ def main(
                 print('test rmse: ', np.sqrt(((scaler.inverse_transform(test.ratings) - scaler.inverse_transform(predictions)) ** 2).mean()))
 
             #predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
+            #labels = [1 if p > 0.5 else 0 for p in predictions]
+            #print(classification_report(train.ratings.astype(np.int32), labels))
             #print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))
 
 

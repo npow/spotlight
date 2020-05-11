@@ -16,6 +16,7 @@ from spotlight.factorization._components import (_predict_process_features,
 from spotlight.losses import (adaptive_hinge_loss,
                               bpr_loss,
                               hinge_loss,
+                              bce_loss,
                               pointwise_loss)
 from spotlight.factorization.representations import (BilinearNet,
                                                      FeatureNet,
@@ -245,7 +246,9 @@ class ImplicitFactorizationModel(object):
                 self._optimizer.zero_grad()
 
                 loss = self._loss_func(positive_prediction, negative_prediction)
-                epoch_loss += loss.data[0]
+                loss += bce_loss(minibatch.ratings, positive_prediction)
+                loss += bce_loss(minibatch.ratings, negative_prediction)
+                epoch_loss += loss.item()
 
                 loss.backward()
                 self._optimizer.step()
@@ -324,4 +327,4 @@ class ImplicitFactorizationModel(object):
                         context_features,
                         item_features)
 
-        return cpu(out.data).numpy().flatten()
+        return cpu(out.data).numpy()
