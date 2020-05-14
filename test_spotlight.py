@@ -213,6 +213,7 @@ def main(
             "user_id_mapping": user_id_mapping,
             "wine_id_mapping": wine_id_mapping,
             "wf_mapping": wf_mapping,
+            "uf_mapping": uf_mapping,
             "wine_mlb": wine_mlb,
             "user_mlb": user_mlb,
         }
