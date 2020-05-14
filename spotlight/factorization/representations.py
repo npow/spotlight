@@ -51,6 +51,8 @@ class HybridContainer(nn.Module):
 
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
         dot = (user_representation * item_representation).sum(dim=1, keepdims=True)
+        dot += (self.mu if self.mu is not None else 0)
+        dot += user_bias + item_bias
         return dot
 
         u = user_representation

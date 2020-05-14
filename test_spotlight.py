@@ -70,7 +70,7 @@ def get_ufs(uf_mapping, user_ids, mlb):
 
 
 def transform_ratings(r):
-    r = np.clip(r, 3.0, 4.5)
+    r = np.clip(r, 3.0, 5.0)
     return r
 
 
@@ -156,7 +156,8 @@ def main(
 ):
     L = get_ratings(input_file)
     wf_mapping = get_wf_mapping(wf_file)
-    uf_mapping = get_uf_mapping(L, wf_mapping)
+    #uf_mapping = get_uf_mapping(L, wf_mapping)
+    uf_mapping = None
     user_ids, wine_ids, ratings = zip(*L)
     # with open('ratings.pkl', 'rb') as f:
     #    user_ids, wine_ids, ratings = pickle.load(f)
@@ -171,18 +172,21 @@ def main(
     ratings = np.array(ratings)
     if loss == 'bce':
         ratings = np.array([rating_to_label(r) for r in ratings], dtype=np.int32)
+        mu = None
     else:
         ratings = transform_ratings(ratings)
-        scaler = StandardScaler(with_std=False)
-        ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
+        #scaler = StandardScaler(with_std=False)
+        #ratings = scaler.fit_transform(ratings.reshape((-1, 1))).reshape((-1,))
         mu = ratings.mean()
-        print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu, 'scaler: ', scaler.mean_)
+        print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu)
 
     wine_mlb = get_wine_mlb(wf_mapping, uniq_wine_ids)
-    user_mlb = get_user_mlb(uf_mapping, uniq_user_ids)
+    #user_mlb = get_user_mlb(uf_mapping, uniq_user_ids)
+    user_mlb = None
 
     item_features = get_wfs(wf_mapping, uniq_wine_ids, wine_mlb)
-    user_features = get_ufs(uf_mapping, uniq_user_ids, user_mlb)
+    #user_features = get_ufs(uf_mapping, uniq_user_ids, user_mlb)
+    user_features = None
 
     num_users = len(uniq_user_ids) + reserved_user_ids
     dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings,
@@ -206,6 +210,7 @@ def main(
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
         loss=loss,
+        mu=mu,
     )
 
     with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:
@@ -219,8 +224,6 @@ def main(
         }
         pickle.dump(mappings, f)
 
-    test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], wine_mlb)
-    test_user_features = get_ufs(uf_mapping, [all_user_ids[x] for x in test.user_ids], user_mlb)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         print(model._net.mu)
@@ -234,16 +237,16 @@ def main(
                 batch_user_ids = test.user_ids[batch_indices]
                 batch_item_ids = test.item_ids[batch_indices]
                 preds = model.predict(batch_user_ids, batch_item_ids,
-                            user_features=get_ufs(uf_mapping, [all_user_ids[x] for x in batch_user_ids], user_mlb),
+#                            user_features=get_ufs(uf_mapping, [all_user_ids[x] for x in batch_user_ids], user_mlb),
                             item_features=get_wfs(wf_mapping, [all_item_ids[x] for x in batch_item_ids], wine_mlb))
                 predictions.extend(preds)
             if loss == 'bce':
                 labels = [1 if p > 0.5 else 0 for p in predictions]
                 print(classification_report(test.ratings.astype(np.int32), labels))
             else:
-                print(scaler.inverse_transform(test.ratings[:10]))
-                print(scaler.inverse_transform(predictions[:10]))
-                print('test rmse: ', np.sqrt(((scaler.inverse_transform(test.ratings) - scaler.inverse_transform(predictions)) ** 2).mean()))
+                print((test.ratings[:10]))
+                print((predictions[:10]))
+                print('test rmse: ', np.sqrt((((test.ratings) - (predictions)) ** 2).mean()))
 
 
 
