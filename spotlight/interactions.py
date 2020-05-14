@@ -330,8 +330,9 @@ class Interactions(object):
                 )
 
     def num_user_features(self):
-
-        return _dim_or_zero(self.user_features)
+        if self.user_features is None:
+            return 0
+        return int(self.user_features.max() + 1)
 
     def num_context_features(self):
 
@@ -341,8 +342,6 @@ class Interactions(object):
         if self.item_features is None:
             return 0
         return int(self.item_features.max() + 1)
-
-        return _dim_or_zero(self.item_features)
 
     def tocoo(self):
         """

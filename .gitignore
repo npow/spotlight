@@ -8,3 +8,4 @@
 *.pkl
 *.csv
 checkpoints_*/
+checkpoints/

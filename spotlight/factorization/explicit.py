@@ -73,7 +73,8 @@ class ExplicitFactorizationModel(object):
                  user_id_mapping=None,
                  wine_id_mapping=None,
                  wf_mapping=None,
-                 mlb=None,
+                 wine_mlb=None,
+                 user_mlb=None,
                  mu=None,
                  optimizer_func=None,
                  use_cuda=False,
@@ -105,7 +106,8 @@ class ExplicitFactorizationModel(object):
         self._user_id_mapping = user_id_mapping
         self._wine_id_mapping = wine_id_mapping
         self._wf_mapping = wf_mapping
-        self._mlb = mlb
+        self._wine_mlb = wine_mlb
+        self._user_mlb = user_mlb
 
         set_seed(self._random_state.randint(-10**8, 10**8),
                  cuda=self._use_cuda)
@@ -245,9 +247,8 @@ class ExplicitFactorizationModel(object):
                                         minibatch.item_ids,
                                         minibatch.user_features,
                                         minibatch.context_features,
-                                        minibatch.get_item_features(
-                                            minibatch.item_ids
-                                        )).squeeze(1)
+                                        minibatch.get_item_features(minibatch.item_ids)
+                                        ).squeeze(1)
 
                 if self._loss == 'poisson':
                     predictions = torch.exp(predictions)

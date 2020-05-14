@@ -39,13 +39,15 @@ class HybridContainer(nn.Module):
         item_representation, item_bias = self.latent.item_representation(item_ids)
 
         if self.user is not None:
-            user_representation += self.user(user_features)
+            user_feature_representation, user_feature_bias = self.user(user_features)
+            user_representation += user_feature_representation
+            user_bias += user_feature_bias
         if self.context is not None:
             user_representation += self.context(context_features)
         if self.item is not None:
-            feature_representation, feature_bias = self.item(item_features)
-            item_representation += feature_representation
-            item_bias += feature_bias
+            item_feature_representation, item_feature_bias = self.item(item_features)
+            item_representation += item_feature_representation
+            item_bias += item_feature_bias
 
         #dot = F.cosine_similarity(user_representation, item_representation).unsqueeze(1)
         dot = (user_representation * item_representation).sum(dim=1, keepdims=True)

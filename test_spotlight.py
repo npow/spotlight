@@ -15,6 +15,7 @@ from spotlight.factorization.explicit import ExplicitFactorizationModel
 from sklearn.preprocessing import MultiLabelBinarizer, StandardScaler
 from sklearn.metrics import *
 from keras_preprocessing.sequence import pad_sequences
+from collections import defaultdict
 
 
 
@@ -56,9 +57,16 @@ def str2bool(v):
 
 def get_wfs(wf_mapping, wine_ids, mlb):
     wine_features = [wf_mapping[wine_id] for wine_id in wine_ids]
-    item_features = mlb.transform(wine_features).tolil().rows
-    item_features = pad_sequences(item_features, maxlen=None, dtype='int64', padding='pre', truncating='pre', value=0)
-    return item_features
+    features = mlb.transform(wine_features).tolil().rows
+    features = pad_sequences(features, maxlen=None, dtype='int64', padding='pre', truncating='pre', value=0)
+    return features
+
+
+def get_ufs(uf_mapping, user_ids, mlb):
+    user_features = [uf_mapping[user_id] for user_id in user_ids]
+    features = mlb.transform(user_features).tolil().rows
+    features = pad_sequences(features, maxlen=None, dtype='int64', padding='pre', truncating='pre', value=0)
+    return features
 
 
 def transform_ratings(r):
@@ -86,7 +94,7 @@ parser.add_argument("--use_cuda", type=str2bool, default=True)
 parser.add_argument("--input_file", type=str, default="filtered_ratings.csv")
 parser.add_argument("--wf_file", type=str, default="wine_feature_mapping_no_id.pkl")
 parser.add_argument("--loss", type=str, default="bce")
-parser.add_argument("--reserved_user_ids", type=int, default=1000)
+parser.add_argument("--reserved_user_ids", type=int, default=0)
 
 
 def main(
@@ -114,6 +122,7 @@ def main(
     uniq_wine_ids = sorted(set(wine_ids))
     user_id_mapping = {user_id: i for i, user_id in enumerate(uniq_user_ids)}
     wine_id_mapping = {wine_id: i for i, wine_id in enumerate(uniq_wine_ids)}
+    print('num users: ', len(uniq_user_ids), ' num_wines: ', len(uniq_wine_ids))
     user_idxs = np.array([user_id_mapping[x] for x in user_ids])
     wine_idxs = np.array([wine_id_mapping[x] for x in wine_ids])
     ratings = np.array(ratings)
@@ -133,16 +142,36 @@ def main(
         uniq_wine_features |= set(wfs)
     uniq_wine_features = ['<pad>'] + list(sorted(uniq_wine_features))
 
-    mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_wine_features)
-    mlb.fit(wine_features)
+    wine_mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_wine_features)
+    wine_mlb.fit(wine_features)
 
-    item_features = get_wfs(wf_mapping, uniq_wine_ids, mlb)
+    uf_mapping = defaultdict(set)
+    user_features = []
+    uniq_user_features = set()
+    for user_id, wine_id, rating in tqdm(L):
+        features = set()
+        if rating >= 4:
+            features |= set([wf for wf in wf_mapping[wine_id] if not wf.startswith('id:')])
+        uniq_user_features |= features
+        user_features.append(list(features))
+        uf_mapping[user_id] |= features
+    uniq_user_features = ['<pad>'] + list(sorted(uniq_user_features))
+    for k, vs in uf_mapping.items():
+        uf_mapping[k] = list(vs)
+
+    user_mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_user_features)
+    user_mlb.fit(user_features)
+
+    item_features = get_wfs(wf_mapping, uniq_wine_ids, wine_mlb)
+    user_features = get_ufs(uf_mapping, uniq_user_ids, user_mlb)
 
     num_users = len(uniq_user_ids) + reserved_user_ids
-    dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings, item_features=item_features, num_users=num_users)
+    dataset = Interactions(user_ids=user_idxs, item_ids=wine_idxs, ratings=ratings,
+            user_features=user_features, item_features=item_features, num_users=num_users)
     random_state = np.random.RandomState(seed)
     train, test = random_train_test_split(dataset, random_state=random_state, test_percentage=0.1)
     all_item_ids = list(uniq_wine_ids)
+    all_user_ids = list(uniq_user_ids)
 
     if torch.cuda.device_count() > 1:
         representation = nn.DataParallel(representation)
@@ -158,6 +187,8 @@ def main(
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
         loss=loss,
+        user_mlb=user_mlb,
+        wine_mlb=wine_mlb,
     )
 
     with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:
@@ -165,12 +196,12 @@ def main(
             "user_id_mapping": user_id_mapping,
             "wine_id_mapping": wine_id_mapping,
             "wf_mapping": wf_mapping,
-            "mlb": mlb,
+            "wine_mlb": wine_mlb,
         }
         pickle.dump(mappings, f)
 
-    #train_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in train.item_ids], mlb)
-    test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], mlb)
+    test_item_features = get_wfs(wf_mapping, [all_item_ids[x] for x in test.item_ids], wine_mlb)
+    test_user_features = get_ufs(uf_mapping, [all_user_ids[x] for x in test.user_ids], user_mlb)
     for epoch in range(num_epochs):
         model.fit(train, verbose=True)
         print(model._net.mu)
@@ -178,7 +209,7 @@ def main(
         print(model._net.latent.item_biases.weight.data.max(), model._net.latent.item_biases.weight.data.min())
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
-            predictions = model.predict(test.user_ids, test.item_ids, item_features=test_item_features)
+            predictions = model.predict(test.user_ids, test.item_ids, user_features=test_user_features, item_features=test_item_features)
             if loss == 'bce':
                 labels = [1 if p > 0.5 else 0 for p in predictions]
                 print(classification_report(test.ratings.astype(np.int32), labels))
@@ -186,10 +217,6 @@ def main(
                 print(scaler.inverse_transform(test.ratings[:10]))
                 print(scaler.inverse_transform(predictions[:10]))
                 print('test rmse: ', np.sqrt(((scaler.inverse_transform(test.ratings) - scaler.inverse_transform(predictions)) ** 2).mean()))
-
-            #predictions = model.predict(train.user_ids, train.item_ids, item_features=train_item_features)
-            #print('train rmse: ', np.sqrt((((train.ratings) - (predictions)) ** 2).mean()))
-
 
 
 
