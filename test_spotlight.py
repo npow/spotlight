@@ -133,6 +133,12 @@ def get_wine_mlb(wf_mapping, uniq_wine_ids):
     return wine_mlb
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+
+
 def main(
     input_file,
     wf_file,
@@ -223,11 +229,14 @@ def main(
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
             predictions = []
-            for user_id, item_id in tqdm(zip(test.user_ids, test.item_ids), total=len(test.user_ids)):
-                pred = model.predict(np.array([user_id]).reshape((-1, 1)), np.array([item_id]).reshape((-1, 1)),
-                        user_features=get_ufs(uf_mapping, [all_user_ids[user_id]], user_mlb),
-                        item_features=get_wfs(wf_mapping, [all_item_ids[item_id]], wine_mlb))
-                predictions.append(pred)
+            indices = np.arange(len(test.user_ids))
+            for batch_indices in tqdm(chunks(indices, batch_size), total=len(indices)//batch_size):
+                batch_user_ids = test.user_ids[batch_indices]
+                batch_item_ids = test.item_ids[batch_indices]
+                preds = model.predict(batch_user_ids, batch_item_ids,
+                            user_features=get_ufs(uf_mapping, [all_user_ids[x] for x in batch_user_ids], user_mlb),
+                            item_features=get_wfs(wf_mapping, [all_item_ids[x] for x in batch_item_ids], wine_mlb))
+                predictions.extend(preds)
             if loss == 'bce':
                 labels = [1 if p > 0.5 else 0 for p in predictions]
                 print(classification_report(test.ratings.astype(np.int32), labels))
