@@ -97,6 +97,42 @@ parser.add_argument("--loss", type=str, default="bce")
 parser.add_argument("--reserved_user_ids", type=int, default=0)
 
 
+def get_uf_mapping(L, wf_mapping):
+    uf_mapping = defaultdict(set)
+    for user_id, wine_id, rating in tqdm(L):
+        features = set()
+        if rating >= 4:
+            features |= set([wf for wf in wf_mapping[wine_id] if not wf.startswith('id:')])
+        uf_mapping[user_id] |= features
+    for k, vs in uf_mapping.items():
+        uf_mapping[k] = list(vs)
+    return uf_mapping
+
+
+def get_user_mlb(uf_mapping, uniq_user_ids):
+    user_features = [uf_mapping[user_id] for user_id in uniq_user_ids]
+    uniq_user_features = set()
+    for ufs in user_features:
+        uniq_user_features |= set(ufs)
+    uniq_user_features = ['<pad>'] + list(sorted(uniq_user_features))
+
+    user_mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_user_features)
+    user_mlb.fit(user_features)
+    return user_mlb
+
+
+def get_wine_mlb(wf_mapping, uniq_wine_ids):
+    wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
+    uniq_wine_features = set()
+    for wfs in wine_features:
+        uniq_wine_features |= set(wfs)
+    uniq_wine_features = ['<pad>'] + list(sorted(uniq_wine_features))
+
+    wine_mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_wine_features)
+    wine_mlb.fit(wine_features)
+    return wine_mlb
+
+
 def main(
     input_file,
     wf_file,
@@ -114,6 +150,7 @@ def main(
 ):
     L = get_ratings(input_file)
     wf_mapping = get_wf_mapping(wf_file)
+    uf_mapping = get_uf_mapping(L, wf_mapping)
     user_ids, wine_ids, ratings = zip(*L)
     # with open('ratings.pkl', 'rb') as f:
     #    user_ids, wine_ids, ratings = pickle.load(f)
@@ -135,32 +172,8 @@ def main(
         mu = ratings.mean()
         print('min: ', ratings.min(), 'max: ', ratings.max(), 'mean: ', mu, 'scaler: ', scaler.mean_)
 
-
-    wine_features = [wf_mapping[wine_id] for wine_id in uniq_wine_ids]
-    uniq_wine_features = set()
-    for wfs in wine_features:
-        uniq_wine_features |= set(wfs)
-    uniq_wine_features = ['<pad>'] + list(sorted(uniq_wine_features))
-
-    wine_mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_wine_features)
-    wine_mlb.fit(wine_features)
-
-    uf_mapping = defaultdict(set)
-    user_features = []
-    uniq_user_features = set()
-    for user_id, wine_id, rating in tqdm(L):
-        features = set()
-        if rating >= 4:
-            features |= set([wf for wf in wf_mapping[wine_id] if not wf.startswith('id:')])
-        uniq_user_features |= features
-        user_features.append(list(features))
-        uf_mapping[user_id] |= features
-    uniq_user_features = ['<pad>'] + list(sorted(uniq_user_features))
-    for k, vs in uf_mapping.items():
-        uf_mapping[k] = list(vs)
-
-    user_mlb = MultiLabelBinarizer(sparse_output=True, classes=uniq_user_features)
-    user_mlb.fit(user_features)
+    wine_mlb = get_wine_mlb(wf_mapping, uniq_wine_ids)
+    user_mlb = get_user_mlb(uf_mapping, uniq_user_ids)
 
     item_features = get_wfs(wf_mapping, uniq_wine_ids, wine_mlb)
     user_features = get_ufs(uf_mapping, uniq_user_ids, user_mlb)
