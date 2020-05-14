@@ -216,6 +216,7 @@ def main(
             "wine_id_mapping": wine_id_mapping,
             "wf_mapping": wf_mapping,
             "wine_mlb": wine_mlb,
+            "user_mlb": user_mlb,
         }
         pickle.dump(mappings, f)
 
