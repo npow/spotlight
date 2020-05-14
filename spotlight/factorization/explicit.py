@@ -298,17 +298,9 @@ class ExplicitFactorizationModel(object):
         self._check_input(user_ids, item_ids, allow_items_none=True)
         self._net.train(False)
 
-        user_ids, item_ids = _predict_process_ids(user_ids, item_ids,
-                                                  self._num_items,
-                                                  self._use_cuda)
+        user_ids, item_ids = _predict_process_ids(user_ids, item_ids, self._num_items, self._use_cuda)
 
-        (user_features,
-         context_features,
-         item_features) = _predict_process_features(user_features,
-                                                    context_features,
-                                                    item_features,
-                                                    len(item_ids),
-                                                    self._use_cuda)
+        (user_features, context_features, item_features) = _predict_process_features(user_features, context_features, item_features, len(item_ids), self._use_cuda)
 
         out = self._net(user_ids,
                         item_ids,

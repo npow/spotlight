@@ -209,7 +209,12 @@ def main(
         print(model._net.latent.item_biases.weight.data.max(), model._net.latent.item_biases.weight.data.min())
         torch.save(model, f"{checkpoint_dir}/model_{epoch:04d}.pt")
         with torch.no_grad():
-            predictions = model.predict(test.user_ids, test.item_ids, user_features=test_user_features, item_features=test_item_features)
+            predictions = []
+            for user_id, item_id in tqdm(zip(test.user_ids, test.item_ids), total=len(test.user_ids)):
+                pred = model.predict(np.array([user_id]).reshape((-1, 1)), np.array([item_id]).reshape((-1, 1)),
+                        user_features=get_ufs(uf_mapping, [all_user_ids[user_id]], user_mlb),
+                        item_features=get_wfs(wf_mapping, [all_item_ids[item_id]], wine_mlb))
+                predictions.append(pred)
             if loss == 'bce':
                 labels = [1 if p > 0.5 else 0 for p in predictions]
                 print(classification_report(test.ratings.astype(np.int32), labels))
