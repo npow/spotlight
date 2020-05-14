@@ -206,8 +206,6 @@ def main(
         random_state=random_state,
         layers=[2*embedding_dim, embedding_dim],
         loss=loss,
-        user_mlb=user_mlb,
-        wine_mlb=wine_mlb,
     )
 
     with open(f"{checkpoint_dir}/mappings.pkl", "wb") as f:
